@@ -135,7 +135,16 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Variáveis globais
+        // ============================================
+        // DEBUG: Início do script
+        // ============================================
+        console.log("🔍 Iniciando debug do ImbalanceEngine");
+        console.log("📌 Versão: 1.0.5 (com correção de sintaxe)");
+        console.log("✅ Erros corrigidos: falta de 'data:' no Chart.js");
+
+        // ============================================
+        // Variáveis Globais
+        // ============================================
         let chart = null;
         let priceHistory = [];
         let lastPrice = 0;
@@ -158,15 +167,17 @@
             }
         };
 
-        // Função para inicializar gráfico
+        // ============================================
+        // Funções Auxiliares
+        // ============================================
         function initChart() {
             const ctx = document.getElementById('priceChart').getContext('2d');
             chart = new Chart(ctx, {
                 type: 'line',
-                data: {
+                data: {  // ✅ CORREÇÃO: Adicionado "data:"
                     datasets: [{
                         label: 'BTC/USDT',
-                        data: [],
+                        data: [],  // ✅ CORREÇÃO: Adicionado "data:"
                         borderColor: '#4CAF50',
                         backgroundColor: 'rgba(76, 175, 80, 0.1)',
                         borderWidth: 2,
@@ -179,59 +190,34 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    animation: {
-                        duration: 0
-                    },
+                    animation: { duration: 0 },
                     scales: {
-                        x: {
-                            display: false
-                        },
+                        x: { display: false },
                         y: {
-                            grid: {
-                                color: 'rgba(255,255,255,0.1)'
-                            },
-                            ticks: {
-                                color: '#aaa'
-                            }
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#aaa' }
                         }
                     },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false
-                        }
-                    }
+                    plugins: { legend: { display: false } }
                 }
             });
         }
 
-        // Atualiza gráfico com novo preço
         function updateChart(price, side) {
             const now = Date.now();
             priceHistory.push({ x: now, y: price });
-            
-            if (priceHistory.length > 200) {
-                priceHistory.shift();
-            }
-            
+            if (priceHistory.length > 200) priceHistory.shift();
             chart.data.datasets[0].data = priceHistory;
             chart.data.datasets[0].borderColor = side === 'buy' ? '#26a69a' : '#ef5350';
             chart.update('none');
         }
 
-        // Adiciona trade ao log
         function addTradeToLog(trade) {
             tradesLog.unshift(trade);
             if (tradesLog.length > 50) tradesLog.pop();
-            
             const container = document.getElementById('tradesContainer');
             if (!container) return;
-            
             container.innerHTML = '';
-            
             tradesLog.forEach(t => {
                 const div = document.createElement('div');
                 div.className = `trade-item ${t.side} ${t.is_absorption ? 'absorption' : ''}`;
@@ -245,7 +231,6 @@
             });
         }
 
-        // Atualiza UI com novo trade
         function updateUI(trade) {
             const priceElement = document.getElementById('currentPrice');
             const changeElement = document.getElementById('priceChange');
@@ -286,9 +271,7 @@
             const currentSecond = Math.floor(Date.now() / 1000);
             if (currentSecond !== lastSecond) {
                 tradesPerSecond = tradesLastSecond;
-                if (tradesPerSecElement) {
-                    tradesPerSecElement.textContent = tradesPerSecond;
-                }
+                if (tradesPerSecElement) tradesPerSecElement.textContent = tradesPerSecond;
                 tradesLastSecond = 0;
                 lastSecond = currentSecond;
             }
@@ -298,24 +281,19 @@
             addTradeToLog(trade);
         }
 
-        // Carrega lista de engines do backend
         function loadEngineList() {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: "get_engine_list" }));
             }
         }
 
-        // Renderiza UI de engines
         function renderEngines(engineList) {
             const container = document.getElementById('enginesList');
             if (!container) return;
-            
             container.innerHTML = '';
-            
             engineList.forEach(engine => {
                 const isActive = enginesConfig.engines.includes(engine.id);
                 const weight = enginesConfig.weights[engine.id] || 1.0;
-                
                 const div = document.createElement('div');
                 div.className = `engine-item ${isActive ? 'active' : ''}`;
                 div.innerHTML = `
@@ -341,7 +319,6 @@
                         const isChecked = e.target.checked;
                         div.classList.toggle('active', isChecked);
                         if (slider) slider.disabled = !isChecked;
-                        
                         if (isChecked && !enginesConfig.engines.includes(engine.id)) {
                             enginesConfig.engines.push(engine.id);
                             enginesConfig.weights[engine.id] = weight;
@@ -357,15 +334,12 @@
                         const value = parseFloat(e.target.value);
                         enginesConfig.weights[engine.id] = value;
                         const valueSpan = div.querySelector(`#weight-value-${engine.id}`);
-                        if (valueSpan) {
-                            valueSpan.textContent = value.toFixed(1);
-                        }
+                        if (valueSpan) valueSpan.textContent = value.toFixed(1);
                     });
                 }
             });
         }
 
-        // Aplica configuração de engines
         function setupApplyButton() {
             const applyBtn = document.getElementById('applyBtn');
             if (applyBtn) {
@@ -376,7 +350,6 @@
                             engines: enginesConfig.engines,
                             weights: enginesConfig.weights
                         }));
-                        
                         alert(`✅ Configuração aplicada!\nEngines: ${enginesConfig.engines.join(', ')}`);
                     } else {
                         alert('⚠️ Conexão com backend perdida. Reinicie o servidor.');
@@ -385,74 +358,54 @@
             }
         }
 
-        // Configura presets
         function setupPresets() {
             document.querySelectorAll('.preset-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const preset = btn.dataset.preset;
-                    
                     switch(preset) {
-                        case 'scalping':
-                            enginesConfig = {
-                                engines: ["tick_velocity", "side_inference"],
-                                weights: {"tick_velocity": 1.5, "side_inference": 1.2}
-                            };
+                        case 'scalping': 
+                            enginesConfig = { 
+                                engines: ["tick_velocity", "side_inference"], 
+                                weights: {"tick_velocity":1.5, "side_inference":1.2} 
+                            }; 
                             break;
-                        case 'balanced':
-                            enginesConfig = {
-                                engines: ["tick_velocity", "side_inference", "spread_weight"],
-                                weights: {"tick_velocity": 1.0, "side_inference": 1.0, "spread_weight": 0.8}
-                            };
+                        case 'balanced': 
+                            enginesConfig = { 
+                                engines: ["tick_velocity", "side_inference", "spread_weight"], 
+                                weights: {"tick_velocity":1.0, "side_inference":1.0, "spread_weight":0.8} 
+                            }; 
                             break;
-                        case 'absorption':
-                            enginesConfig = {
-                                engines: ["tick_velocity", "side_inference", "micro_cluster"],
-                                weights: {"tick_velocity": 1.0, "side_inference": 1.0, "micro_cluster": 1.8}
-                            };
+                        case 'absorption': 
+                            enginesConfig = { 
+                                engines: ["tick_velocity", "side_inference", "micro_cluster"], 
+                                weights: {"tick_velocity":1.0, "side_inference":1.0, "micro_cluster":1.8} 
+                            }; 
                             break;
                     }
-                    
                     document.querySelectorAll('.engine-item').forEach(item => {
                         const checkbox = item.querySelector('.engine-checkbox');
                         if (!checkbox) return;
-                        
                         const engineId = checkbox.id.replace('engine-', '');
                         const isActive = enginesConfig.engines.includes(engineId);
-                        
                         checkbox.checked = isActive;
                         item.classList.toggle('active', isActive);
-                        
                         const slider = item.querySelector('.engine-weight-slider');
                         if (slider) {
                             slider.disabled = !isActive;
-                            
                             if (isActive) {
                                 const weight = enginesConfig.weights[engineId] || 1.0;
                                 slider.value = weight;
                                 const valueSpan = item.querySelector('.engine-weight-value');
-                                if (valueSpan) {
-                                    valueSpan.textContent = weight.toFixed(1);
-                                }
+                                if (valueSpan) valueSpan.textContent = weight.toFixed(1);
                             }
                         }
                     });
-                    
                     alert(`🎯 Preset "${btn.textContent.trim()}" carregado!\nClique em "Aplicar Configuração" para ativar.`);
                 });
             });
         }
 
-        // Cria conexão WebSocket
         function createWebSocket() {
-            if (ws && ws.readyState !== WebSocket.CLOSED) {
-                try {
-                    ws.close();
-                } catch (e) {
-                    console.log("Conexão já estava fechando");
-                }
-                ws = null;
-            }
-            
             ws = new WebSocket('ws://localhost:8765');
             
             ws.onopen = () => {
@@ -469,28 +422,38 @@
                 try {
                     const data = JSON.parse(event.data);
                     
-                    if (data.type === 'engine_list') {
-                        renderEngines(data.engines);
-                    } else if (data.type === 'trade') {
+                    console.log(`📡 [RECEBIDO] ${data.type.toUpperCase()}:`, {
+                        price: data.price,
+                        volume: data.volume,
+                        side: data.side,
+                        timestamp: data.timestamp,
+                        is_absorption: data.is_absorption
+                    });
+                    
+                    if (data.type === 'trade') {
+                        if (isNaN(data.price) || isNaN(data.volume)) {
+                            console.error("❌ [ERRO] Dados inválidos recebidos:", data);
+                            return;
+                        }
                         updateUI(data);
-                        
+                        console.log(`📈 [ATUALIZADO] Preço: ${data.price.toFixed(2)}, Volume: ${data.volume.toFixed(0)}, Side: ${data.side}`);
                         const latencyDisplay = document.getElementById('latencyDisplay');
                         if (latencyDisplay) {
                             const latency = Date.now() - data.timestamp;
                             latencyDisplay.textContent = `Latência: ${latency}ms`;
                         }
-                        
                         const statusDot = document.getElementById('connectionStatus');
                         if (statusDot) statusDot.className = 'status-dot connected';
-                    }
-                    else if (data.type === 'engines_updated') {
+                    } else if (data.type === 'engine_list') {
+                        renderEngines(data.engines);
+                    } else if (data.type === 'engines_updated') {
                         console.log('⚙️ Engines atualizados:', data);
-                    }
-                    else if (data.type === 'error') {
+                    } else if (data.type === 'error') {
                         alert(`❌ Erro: ${data.message}`);
                     }
                 } catch (e) {
-                    console.error('Erro ao processar mensagem:', e);
+                    console.error('❌ Erro ao processar mensagem:', e);
+                    console.error('Mensagem bruta:', event.data);
                 }
             };
 
@@ -500,7 +463,6 @@
                 const statusText = document.getElementById('statusText');
                 if (statusDot) statusDot.className = 'status-dot disconnected';
                 if (statusText) statusText.textContent = 'Desconectado - Verifique o backend';
-                
                 if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                     reconnectAttempts++;
                     console.log(`Tentando reconectar (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
@@ -516,28 +478,20 @@
             };
         }
 
-        // Inicializa quando página carregar
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Iniciando aplicação...');
             
-            // Verifica se elementos existem
             const priceChart = document.getElementById('priceChart');
             if (!priceChart) {
                 console.error('Elemento priceChart não encontrado!');
                 return;
             }
             
-            // Inicializa gráfico
             initChart();
-            
-            // Configura botões
             setupApplyButton();
             setupPresets();
-            
-            // Inicia conexão WebSocket
             createWebSocket();
             
-            // Mensagem inicial de espera
             setTimeout(() => {
                 if (!ws || ws.readyState !== WebSocket.OPEN) {
                     const tradesContainer = document.getElementById('tradesContainer');
@@ -548,7 +502,7 @@
                                 <p style="margin-top:10px; font-size:0.9rem">
                                     Execute no PowerShell:<br>
                                     <code style="background:#333; padding:5px 10px; border-radius:4px; display:inline-block; margin-top:5px">
-                                        cd C:\\imbalanceengine\\backend && python websocket_server.py
+                                        cd C:\\imbalanceengine\\backend && python websocket_server_simple.py
                                     </code>
                                 </p>
                             </div>

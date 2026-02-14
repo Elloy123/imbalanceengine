@@ -14,25 +14,18 @@ class BinanceDataFeed:
         self.last_price = 0.0
     
     async def connect(self, on_data_callback=None):
+        """Conecta à Binance e processa trades. NÃO reconecta sozinho
+        (reconexão é feita pelo websocket_server)."""
         self.running = True
         print(f"🔌 Conectando à Binance: {self.symbol.upper()}")
-        print(f"📡 WebSocket: {self.ws_url}\n")
         
-        try:
-            async with websockets.connect(self.ws_url) as websocket:
-                print(f"✅ Conectado! Recebendo trades em tempo real...\n")
-                print(f"{'Hora (UTC)':<12} | {'Preço':<12} | {'Volume':<12} | {'Side':<6} | {'Trade #'}")
-                print("-" * 65)
-                
-                while self.running:
-                    message = await websocket.recv()
-                    data = json.loads(message)
-                    await self._process_trade(data, on_data_callback)
-        
-        except Exception as e:
-            print(f"❌ Erro WebSocket: {e}")
-            await asyncio.sleep(5)
-            await self.connect(on_data_callback)
+        async with websockets.connect(self.ws_url) as websocket:
+            print(f"✅ Conectado! Recebendo trades...\n")
+            
+            while self.running:
+                message = await websocket.recv()
+                data = json.loads(message)
+                await self._process_trade(data, on_data_callback)
     
     async def _process_trade(self, data: dict, on_data_callback=None):
         self.trade_count += 1
@@ -40,15 +33,14 @@ class BinanceDataFeed:
         price = float(data['p'])
         volume_btc = float(data['q'])
         volume_usdt = price * volume_btc
-        is_maker = data['m']  # True = sell market order, False = buy market order
-        timestamp = data['T']
+        is_maker = data['m']
+        timestamp = int(data['T'])
         
         # Side REAL da Binance:
-        # - is_maker=False → comprador agressivo (comprou no ask) → BUY
-        # - is_maker=True  → vendedor agressivo (vendeu no bid) → SELL
+        # is_maker=False → comprador agressivo (BUY)
+        # is_maker=True  → vendedor agressivo (SELL)
         side_real = "buy" if not is_maker else "sell"
         
-        # Cria tick compatível com engines
         tick = {
             "price": price,
             "bid": price - 0.05,
@@ -63,12 +55,12 @@ class BinanceDataFeed:
         
         self.last_price = price
         
-        # Processa com engines se disponível
+        # Processa com engines
         enhanced = None
         if self.orchestrator:
             enhanced = self.orchestrator.calculate_enhanced_volume(tick)
         
-        # Callback para frontend/salvamento
+        # Envia para o frontend via callback
         if on_data_callback:
             payload = {
                 "type": "trade",
@@ -85,20 +77,20 @@ class BinanceDataFeed:
             }
             await on_data_callback(payload)
         
-        # Mostra no console
-        now = time.strftime('%H:%M:%S', time.gmtime(timestamp/1000))
-        side_color = "\033[92mBUY \033[0m" if side_real == "buy" else "\033[91mSELL\033[0m"
-        vol_display = f"{enhanced['volume']:.0f}" if enhanced else f"{volume_usdt:.0f}"
-        print(f"{now:<12} | {price:<12.2f} | {vol_display:<12} | {side_color} | #{self.trade_count}")
+        # Log no console (a cada 50 trades para não poluir)
+        if self.trade_count % 50 == 0:
+            side_icon = "🟢" if side_real == "buy" else "🔴"
+            print(f"{side_icon} #{self.trade_count} | ${price:.2f} | Vol: ${volume_usdt:.0f} | {side_real.upper()}")
     
     def stop(self):
         self.running = False
         print("\n⏹️  Conexão encerrada")
 
-# Teste rápido independente (execute: python binance_ws.py)
+
+# Teste independente
 if __name__ == "__main__":
     async def dummy_handler(data):
-        pass  # Só mostra no console
+        pass
     
     orchestrator = VolumeEngineOrchestrator(
         engine_names=["tick_velocity", "side_inference", "micro_cluster"],
